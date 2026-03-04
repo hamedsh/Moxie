@@ -1,0 +1,14 @@
+[FORMAT]
+max-line-length=120
+[MESSAGES CONTROL]
+disable=
+    redefined-outer-name,
+    unused-argument,
+    missing-docstring,
+    C0103,
+    too-few-public-methods,
+    no-name-in-module,
+    use-dict-literal
+[TYPECHECK]
+ignored-classes=Gino
+
