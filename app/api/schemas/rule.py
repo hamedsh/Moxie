@@ -32,7 +32,7 @@ class RuleResponseSchema(Rule):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class RuleStatusChange(BaseModel):
@@ -44,4 +44,4 @@ class RuleMockCountChange(BaseModel):
 
 
 class JsonModel(BaseModel):
-    __root__: Union[Dict[str, Any], List[Any]]
+    root: Union[Dict[str, Any], List[Any]]

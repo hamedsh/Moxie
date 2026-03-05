@@ -9,12 +9,12 @@ PROJECT_DIR = Path(__file__).parent.parent.parent
 
 class Settings(BaseSettings):
     ENV: str = None
-    RELEASE: str = None
+    RELEASE: Optional[str] = None
 
     API_V1_STR: str = "/api/api_v1"
     PROJECT_NAME: str = "statuscode_test_tool"
 
-    SENTRY_DSN: str = None
+    SENTRY_DSN: Optional[str] = None
 
     DB_HOST: str
     DB_USER: str
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_DATABASE_URI: Optional[PostgresDsn] = None
 
     # POSTGRESQL TEST DATABASE
-    TEST_DB_HOSTNAME: str = "postgres"
+    TEST_DB_HOST: str = "postgres"
     TEST_DB_USER: str = "postgres"
     TEST_DB_PASSWORD: str = ""
     TEST_DB_PORT: str = "5432"
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
         values = info.data
         user = values["TEST_DB_USER"]
         password = values["TEST_DB_PASSWORD"]
-        host = values["TEST_DB_HOSTNAME"]
+        host = values["TEST_DB_HOST"]
         port = values["TEST_DB_PORT"]
         database = values["TEST_DB_DATABASE"]
         return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/test_{database}"

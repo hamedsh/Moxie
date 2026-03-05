@@ -25,12 +25,12 @@ URL_PREFIX = "/api/api_v1/api_gateway"
     'method, body',
     (
         ('GET', None),
-        # ('POST', {'key_1': 'value_1', 'key_2': 'value_2'}),
-        # ('POST', {}),
-        # ('POST', None),
-        # ('PATCH', {'key1': ['val1', 'val2']}),
-        # ('DELETE', {'key1': {'key_1_1': 'val1', 'key_1_2': 'val2'}}),
-        # ('PUT', {}),
+        ('POST', {'key_1': 'value_1', 'key_2': 'value_2'}),
+        ('POST', {}),
+        ('POST', None),
+        ('PATCH', {'key1': ['val1', 'val2']}),
+        ('DELETE', {'key1': {'key_1_1': 'val1', 'key_1_2': 'val2'}}),
+        ('PUT', {}),
     ),
 )
 async def test_if_there_is_no_rule_then_it_return_final_response(
