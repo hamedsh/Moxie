@@ -5,7 +5,7 @@ from typing import AsyncGenerator
 import pytest
 import pytest_asyncio
 from asyncpg import InvalidCatalogNameError
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.util import concurrency
@@ -54,6 +54,7 @@ async def db_session(test_db_setup_sessionmaker) -> AsyncGenerator[AsyncSession,
 
 @pytest_asyncio.fixture(scope="session")
 async def test_client() -> AsyncGenerator[AsyncClient, None]:
-    async with AsyncClient(base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         client.headers.update({"Host": "localhost"})
         yield client
