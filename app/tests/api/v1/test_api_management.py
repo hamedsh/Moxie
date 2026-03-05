@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 
 from api.db_models.models import RuleModel
-from api.schemas.rule import Rule
+from api.schemas.rule import Rule, Methods
 from tests.data_test import RULE_DATA
 
 URL_PREFIX = "/api/api_v1/api_management"
@@ -16,7 +16,7 @@ URL_PREFIX = "/api/api_v1/api_management"
 @pytest.mark.asyncio
 async def test_add_rule(db_session: AsyncSession, test_client: AsyncClient) -> None:
     test_rule = Rule(
-        method='GET',
+        method=Methods.GET,
         url='test_url/api/api_v1/id',
         call_backend=False,
         status_code=HTTPStatus.OK,
@@ -26,7 +26,7 @@ async def test_add_rule(db_session: AsyncSession, test_client: AsyncClient) -> N
         response_media_type="application/json",
     )
 
-    response: Response = await test_client.post(f'{URL_PREFIX}/rule', json=test_rule.dict())
+    response: Response = await test_client.post(f'{URL_PREFIX}/rule', json=test_rule.model_dump())
 
     assert response.status_code == HTTPStatus.CREATED
     response_json = response.json()

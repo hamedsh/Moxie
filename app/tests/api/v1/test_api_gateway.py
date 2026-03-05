@@ -44,9 +44,7 @@ async def test_if_there_is_no_rule_then_it_return_final_response(
     test_query = 'a=10'
 
     def httpx_response_mock(request: Request):
-        nonlocal test_path
-        nonlocal body
-        assert f'https://{test_path}' == str(request.url).split('?')[0]
+        assert f'https://{test_path}' == str(request.url).split('?', maxsplit=1)[0]
         if body:
             assert body == json.loads(request.content.decode())
         return httpx.Response(
@@ -66,6 +64,7 @@ async def test_if_there_is_no_rule_then_it_return_final_response(
     assert response.json() == json.loads(test_response)
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     'method, response_body, request_body, status_code',
@@ -77,7 +76,7 @@ async def test_if_there_is_no_rule_then_it_return_final_response(
         ('PUT', {"key": "value"}, {"req_key": "req_value"}, HTTPStatus.ACCEPTED),
     ),
 )
-async def test_it_there_is_a_rule_for_get_it_will_return_custom_response(  # pylint: disable=too-many-arguments
+async def test_it_there_is_a_rule_for_get_it_will_return_custom_response(
     test_client: AsyncClient,
     db_session: AsyncSession,
     method,
