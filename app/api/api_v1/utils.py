@@ -30,7 +30,7 @@ async def _capture_route_logic(
     logger.info('request: %s, %s, %s', request.method, full_path, request_body)
     full_path = _get_full_path(request, full_path)
     if request_body:
-        request_body = request_body.dict()['__root__']
+        request_body = request_body.root
     endpoint_response: HttpxResponse = await _check_request(
         db_session, request, full_path, request_body,
     )

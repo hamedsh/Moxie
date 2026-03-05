@@ -2,7 +2,7 @@ from enum import auto
 from http import HTTPStatus
 from typing import Dict, Any, List, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 from strenum import StrEnum
 
 
@@ -43,5 +43,5 @@ class RuleMockCountChange(BaseModel):
     mock_count: int
 
 
-class JsonModel(BaseModel):
+class JsonModel(RootModel):
     root: Union[Dict[str, Any], List[Any]]
