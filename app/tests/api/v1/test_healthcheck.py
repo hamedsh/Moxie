@@ -18,5 +18,5 @@ async def test_get_response_when_delay_provided(
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {
-        'database': 'ok', 'date': ANY, 'environment': 'PYTEST', 'redis': 'ok', 'release': None,
+        'database': 'ok', 'date': ANY, 'environment': 'TEST', 'redis': 'ok', 'release': None,
     }

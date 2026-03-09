@@ -131,13 +131,13 @@ TEST_DB_DATABASE=statuscode_tool
 
 # Development
 ## autogenerate alembic model
-`PYTHONPATH=app alembic revision --autogenerate -m 'name'`
+`alembic revision --autogenerate -m 'name'`
 
 ## run migrations
-`PYTHONPATH=app alembic upgrade head`
+`alembic upgrade head`
 
-## local execution
-`PYTHONPATH=app uvicorn app.main:app --reload --port 8080`
+## local dev execution
+`uvicorn main:app --reload --port 8080`
 
 ## ToDo
 - [ ] add response based on request data (json)

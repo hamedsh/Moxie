@@ -1,14 +1,14 @@
 from pathlib import Path
 from typing import Optional
 
-from pydantic import PostgresDsn, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 PROJECT_DIR = Path(__file__).parent.parent.parent
 
 
 class Settings(BaseSettings):
-    ENV: str = None
+    ENV: Optional[str] = None
     RELEASE: Optional[str] = None
 
     API_V1_STR: str = "/api/api_v1"
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     DB_USER: str
     DB_PASSWORD: str
     DB_DATABASE: str
-    SQLALCHEMY_DATABASE_URI: Optional[PostgresDsn] = None
+    SQLALCHEMY_DATABASE_URI: Optional[str] = None
 
     # POSTGRESQL TEST DATABASE
     TEST_DB_HOST: str = "postgres"

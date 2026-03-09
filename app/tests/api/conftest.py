@@ -27,7 +27,7 @@ def event_loop():
 
 @pytest_asyncio.fixture(scope="session")
 async def test_db_setup_sessionmaker():
-    assert settings.ENV == "PYTEST"
+    assert settings.ENV == "TEST"
     await concurrency.greenlet_spawn(create_db)
 
     async with async_engine.begin() as conn:

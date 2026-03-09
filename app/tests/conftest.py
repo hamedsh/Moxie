@@ -1,3 +1,3 @@
 import os
 
-os.environ["ENV"] = "PYTEST"
+os.environ["ENV"] = "TEST"
