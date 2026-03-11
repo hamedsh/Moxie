@@ -23,7 +23,6 @@ ARG DB_PORT=
 ARG DB_USER=
 ARG DB_PASSWORD=
 ARG DB_DATABASE=
-ARG RUN_MIGRATIONS=false
 
 # Set environment variables
 ENV DB_TYPE=${DB_TYPE}
@@ -34,9 +33,7 @@ ENV DB_USER=${DB_USER}
 ENV DB_PASSWORD=${DB_PASSWORD}
 ENV DB_DATABASE=${DB_DATABASE}
 
-# Run migrations if RUN_MIGRATIONS is true
-RUN if [ "$RUN_MIGRATIONS" = "true" ]; then \
-    alembic upgrade head; \
-    fi
+
+RUN alembic upgrade head;
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
