@@ -11,6 +11,7 @@ from api.consts import INCLUDED_HEADERS, DEVELOPMENT_CLUSTER_NAME, DEFAULT_TIMEO
 from api.crud.rule import search_rule, reduce_use_count
 from api.deps import logger
 from api.schemas.rule import JsonModel, Rule
+from core.database_context import get_db_session
 
 
 def _get_full_path(request, url_path):
@@ -22,11 +23,11 @@ def _get_full_path(request, url_path):
 
 
 async def _capture_route_logic(
-        db_session: AsyncSession,
         full_path: str,
         request: Request,
         request_body: Optional[JsonModel] = None,
 ):
+    db_session = get_db_session()
     logger.info('request: %s, %s, %s', request.method, full_path, request_body)
     full_path = _get_full_path(request, full_path)
     if request_body:

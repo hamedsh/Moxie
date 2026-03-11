@@ -15,9 +15,8 @@ api_gateway = APIRouter()
 async def capture_routes_get(
     request: Request,
     url_path: str,
-    db_session: AsyncSession = Depends(get_db),
 ):
-    return await _capture_route_logic(db_session, url_path, request)
+    return await _capture_route_logic(url_path, request)
 
 
 @api_gateway.post("/{url_path:path}", include_in_schema=False)
