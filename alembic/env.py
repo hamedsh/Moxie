@@ -26,11 +26,24 @@ load_dotenv()
 
 
 def get_url():
-    user = os.getenv("DB_USER", "postgres")
-    password = os.getenv("DB_PASSWORD", "")
-    server = os.getenv("DB_HOST", "postgres")
-    db = os.getenv("DB_DATABASE", "statuscode_tool")
-    return f"postgresql://{user}:{password}@{server}/{db}"
+    db_type = os.getenv("DB_TYPE", "sqlite").lower()
+
+    if db_type == "sqlite":
+        db_path = os.getenv("DB_PATH", "app.db")
+        return f"sqlite:///{db_path}"
+    elif db_type == "mysql":
+        user = os.getenv("DB_USER", "root")
+        password = os.getenv("DB_PASSWORD", "")
+        server = os.getenv("DB_HOST", "localhost")
+        port = os.getenv("DB_PORT", "3306")
+        db = os.getenv("DB_DATABASE", "statuscode_tool")
+        return f"mysql+pymysql://{user}:{password}@{server}:{port}/{db}"
+    else:  # postgresql (default)
+        user = os.getenv("DB_USER", "postgres")
+        password = os.getenv("DB_PASSWORD", "")
+        server = os.getenv("DB_HOST", "postgres")
+        db = os.getenv("DB_DATABASE", "statuscode_tool")
+        return f"postgresql://{user}:{password}@{server}/{db}"
 
 
 def run_migrations_offline():

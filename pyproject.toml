@@ -14,6 +14,9 @@ dependencies = [
     "sqlalchemy>=2.0.48",
     "sqlalchemy-utils>=0.42.1",
     "strenum>=0.4.15",
+    "aiomysql>=0.2.0",
+    "pymysql>=1.1.0",
+    "aiosqlite>=0.20.0",
 ]
 
 [dependency-groups]

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 111111
+      POSTGRES_DB: statuscode_tool
+    ports:
+      - "5432:5432"
+    networks:
+      - moxie-network
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: statuscode_tool
+      MYSQL_USER: moxie_user
+      MYSQL_PASSWORD: moxie_password
+    ports:
+      - "3306:3306"
+    networks:
+      - moxie-network
+
+  moxie-sqlite:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DB_TYPE: sqlite
+        DB_PATH: app.db
+    ports:
+      - "8000:8080"
+    networks:
+      - moxie-network
+
+networks:
+  moxie-network:
+    driver: bridge
+
