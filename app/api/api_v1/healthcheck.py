@@ -29,7 +29,6 @@ async def healthcheck(
         'release': settings.RELEASE,
         'environment': settings.ENV,
         'database': db_status,
-        'redis': "ok",
     }
 
     return JSONResponse(content=data)
