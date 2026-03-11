@@ -8,7 +8,11 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip && pip install -r requirements.txt
 
-COPY app app
+COPY app/api app/api
+COPY app/core app/core
+COPY app/__init__.py app
+COPY app/main.py app
+
 COPY alembic alembic
 COPY alembic.ini .
 COPY logging.conf .
