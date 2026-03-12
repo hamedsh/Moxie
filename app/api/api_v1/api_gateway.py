@@ -1,12 +1,10 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter
 from starlette.requests import Request
 
 from api.api_v1.utils import _capture_route_logic
-from api.deps import get_db
-from api.schemas.rule import JsonModel
+from core.context import get_db_session
 
 api_gateway = APIRouter()
 
@@ -15,18 +13,17 @@ api_gateway = APIRouter()
 async def capture_routes_get(
     request: Request,
     url_path: str,
-    db_session: AsyncSession = Depends(get_db),
 ):
-    return await _capture_route_logic(db_session, url_path, request)
+    return await _capture_route_logic(url_path, request)
 
 
 @api_gateway.post("/{url_path:path}", include_in_schema=False)
 async def capture_routes_post(
     request: Request,
     url_path: str,
-    request_body: Optional[JsonModel] = None,
-    db_session: AsyncSession = Depends(get_db),
+    request_body: Optional[object] = None,
 ):
+    db_session = get_db_session()
     return await _capture_route_logic(
         db_session, url_path, request, request_body,
     )
@@ -36,9 +33,9 @@ async def capture_routes_post(
 async def capture_routes_patch(
     request: Request,
     url_path: str,
-    request_body: Optional[JsonModel] = None,
-    db_session: AsyncSession = Depends(get_db),
+    request_body: Optional[object] = None,
 ):
+    db_session = get_db_session()
     return await _capture_route_logic(db_session, url_path, request, request_body)
 
 
@@ -46,9 +43,9 @@ async def capture_routes_patch(
 async def capture_routes_delete(
     request: Request,
     url_path: str,
-    request_body: Optional[JsonModel] = None,
-    db_session: AsyncSession = Depends(get_db),
+    request_body: Optional[object] = None,
 ):
+    db_session = get_db_session()
     return await _capture_route_logic(db_session, url_path, request, request_body)
 
 
@@ -56,7 +53,7 @@ async def capture_routes_delete(
 async def capture_routes_put(
     request: Request,
     url_path: str,
-    request_body: Optional[JsonModel] = None,
-    db_session: AsyncSession = Depends(get_db),
+    request_body: Optional[object] = None,
 ):
+    db_session = get_db_session()
     return await _capture_route_logic(db_session, url_path, request, request_body)
