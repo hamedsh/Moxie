@@ -13,6 +13,7 @@ from sqlalchemy_utils import database_exists, create_database
 
 from core.base_class import Base
 from core.config import settings
+from core.context import set_db_session, clear_db_session
 from core.session import async_engine, async_session
 from main import app
 
@@ -45,11 +46,15 @@ def create_db():
 @pytest_asyncio.fixture(autouse=True)
 async def db_session(test_db_setup_sessionmaker) -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
-        yield session
-
-        for _, table in Base.metadata.tables.items():
-            await session.execute(delete(table))
-        await session.commit()
+        set_db_session(session)
+        try:
+            yield session
+        finally:
+            for _, table in Base.metadata.tables.items():
+                await session.execute(delete(table))
+            await session.commit()
+            await session.close()
+            clear_db_session()
 
 
 @pytest_asyncio.fixture(scope="session")

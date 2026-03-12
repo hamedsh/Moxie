@@ -2,15 +2,16 @@ from typing import Union, Any
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select, delete, or_, and_, func, text
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.operators import is_not
 
 from api.db_models.models import RuleModel
 from api.deps import logger
 from api.schemas.rule import Rule, RuleStatusChange
+from core.context import get_db_session
 
 
-async def create_rule(db_session: AsyncSession, rule: Rule) -> RuleModel:
+async def create_rule(rule: Rule) -> RuleModel:
+    db_session = get_db_session()
     if rule.url.startswith('/'):
         rule.url = rule.url[1:]
     item_in_data = jsonable_encoder(rule)
@@ -26,17 +27,20 @@ async def create_rule(db_session: AsyncSession, rule: Rule) -> RuleModel:
     return item
 
 
-async def execute_raw_query(session: AsyncSession, query: str) -> Any:
+async def execute_raw_query(query: str) -> Any:
+    session = get_db_session()
     query_executer = await session.execute(text(query))
     return query_executer.scalars().first()
 
 
-async def get_rule_by_id(session: AsyncSession, rule_id: int) -> RuleModel:
+async def get_rule_by_id(rule_id: int) -> RuleModel:
+    session = get_db_session()
     query_executer = await session.execute(select(RuleModel).where(RuleModel.id == rule_id))
     return query_executer.scalars().first()
 
 
-async def disable_rule(session: AsyncSession, rule_id: int, status: RuleStatusChange) -> RuleModel:
+async def disable_rule(rule_id: int, status: RuleStatusChange) -> RuleModel:
+    session = get_db_session()
     query: RuleModel = select(RuleModel).where(RuleModel.id == rule_id)
     query_result: RuleModel = await session.execute(query)
     db_rule = query_result.scalar()
@@ -46,13 +50,15 @@ async def disable_rule(session: AsyncSession, rule_id: int, status: RuleStatusCh
     return db_rule
 
 
-async def delete_rule(session: AsyncSession, rule_id: int) -> None:
+async def delete_rule(rule_id: int) -> None:
+    session = get_db_session()
     query: RuleModel = delete(RuleModel).where(RuleModel.id == rule_id)
     await session.execute(query)
     await session.commit()
 
 
-async def reduce_use_count(session: AsyncSession, rule: RuleModel) -> None:
+async def reduce_use_count(rule: RuleModel) -> None:
+    session = get_db_session()
     await session.refresh(rule)
     logger.debug('set rule usage. id: %s, current mock_count: %s', rule.id, rule.mock_count)
     if rule.mock_count in (-1, 0):
@@ -64,7 +70,8 @@ async def reduce_use_count(session: AsyncSession, rule: RuleModel) -> None:
     logger.debug('set rule usage. id: %s, new mock_count: %s', rule.id, rule.mock_count)
 
 
-async def search_rule(session: AsyncSession, method: str, url: str) -> Union[RuleModel, None]:
+async def search_rule(method: str, url: str) -> Union[RuleModel, None]:
+    session = get_db_session()
     logger.debug('search rule, method: %s, url: %s', method, url)
     query = select(RuleModel).filter(and_(
         RuleModel.enable.is_(True),
@@ -76,13 +83,15 @@ async def search_rule(session: AsyncSession, method: str, url: str) -> Union[Rul
     return query_result.scalars().first()
 
 
-async def get_all_rules(session: AsyncSession) -> list[RuleModel]:
+async def get_all_rules() -> list[RuleModel]:
+    session = get_db_session()
     query = select(RuleModel)
     query_result = await session.execute(query)
     return query_result.scalars().all()
 
 
-async def set_rule_mock_count(session: AsyncSession, rule_id: int, new_value: int) -> RuleModel:
+async def set_rule_mock_count(rule_id: int, new_value: int) -> RuleModel:
+    session = get_db_session()
     query: RuleModel = select(RuleModel).where(RuleModel.id == rule_id)
     query_result: RuleModel = await session.execute(query)
     db_rule: RuleModel = query_result.scalar()

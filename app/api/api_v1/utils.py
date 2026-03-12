@@ -3,7 +3,6 @@ import re
 from typing import Optional
 
 from httpx import Response as HttpxResponse, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -11,7 +10,6 @@ from api.consts import INCLUDED_HEADERS, DEVELOPMENT_CLUSTER_NAME, DEFAULT_TIMEO
 from api.crud.rule import search_rule, reduce_use_count
 from api.deps import logger
 from api.schemas.rule import JsonModel, Rule
-from core.context import get_db_session
 
 
 def _get_full_path(request, url_path):
@@ -27,13 +25,10 @@ async def _capture_route_logic(
         request: Request,
         request_body: Optional[JsonModel] = None,
 ):
-    db_session = get_db_session()
     logger.info('request: %s, %s, %s', request.method, full_path, request_body)
     full_path = _get_full_path(request, full_path)
-    if request_body:
-        request_body = request_body.root
     endpoint_response: HttpxResponse = await _check_request(
-        db_session, request, full_path, request_body,
+        request, full_path, request_body,
     )
     return Response(
         content=endpoint_response.content if isinstance(endpoint_response, HttpxResponse) else endpoint_response.body,
@@ -42,12 +37,12 @@ async def _capture_route_logic(
     )
 
 
-async def find_rule_with_decreased_use_count(session: AsyncSession, method: str, path: str) -> Optional[Rule]:
-    rule = await search_rule(session, method, path)
+async def find_rule_with_decreased_use_count(method: str, path: str) -> Optional[Rule]:
+    rule = await search_rule(method, path)
     logger.debug('rule: %s', str(rule))
 
     if rule:
-        await reduce_use_count(session, rule)
+        await reduce_use_count(rule)
 
     return rule
 
@@ -64,9 +59,9 @@ def log_request_details(request: Request, path: str):
 
 
 async def _check_request(
-        session: AsyncSession, request: Request, path: str, request_body: Optional[dict] = None,
+        request: Request, path: str, request_body: Optional[dict] = None,
 ) -> Response:
-    rule = await find_rule_with_decreased_use_count(session, request.method, path)
+    rule = await find_rule_with_decreased_use_count(request.method, path)
 
     await apply_delay_if_needed(rule)
 

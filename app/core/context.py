@@ -24,4 +24,3 @@ def get_db_session() -> Optional[AsyncSession]:
 def clear_db_session() -> None:
     """Clear the database session from the context."""
     _db_session_context.set(None)
-

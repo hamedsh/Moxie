@@ -30,4 +30,3 @@ async def get_db_from_context():
     if session is None:
         raise RuntimeError("Database session not available in context. Ensure middleware is configured.")
     return session
-
