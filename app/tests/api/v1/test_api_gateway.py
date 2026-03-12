@@ -5,7 +5,6 @@ from typing import Optional
 import httpx
 import pytest
 from httpx import AsyncClient, Headers
-# from httpx._models import Headers
 from pytest_mock import MockerFixture
 from requests import Response
 from respx import MockRouter
@@ -24,13 +23,13 @@ URL_PREFIX = "/api/api_v1/api_gateway"
 @pytest.mark.parametrize(
     'method, body',
     (
-        ('GET', None),
-        ('POST', {'key_1': 'value_1', 'key_2': 'value_2'}),
-        ('POST', {}),
-        ('POST', None),
-        ('PATCH', {'key1': ['val1', 'val2']}),
-        ('DELETE', {'key1': {'key_1_1': 'val1', 'key_1_2': 'val2'}}),
-        ('PUT', {}),
+        pytest.param('GET', None, id='get_request_no_body'),
+        pytest.param('POST', {'key_1': 'value_1', 'key_2': 'value_2'}, id='post_request_with_body'),
+        pytest.param('POST', {}, id='post_request_empty_body'),
+        pytest.param('POST', None, id='post_request_no_body'),
+        pytest.param('PATCH', {'key1': ['val1', 'val2']}, id='patch_request_with_list_values'),
+        pytest.param('DELETE', {'key1': {'key_1_1': 'val1', 'key_1_2': 'val2'}}, id='delete_request_with_nested_dict'),
+        pytest.param('PUT', {}, id='put_request_empty_body'),
     ),
 )
 async def test_if_there_is_no_rule_then_it_return_final_response(
@@ -69,11 +68,11 @@ async def test_if_there_is_no_rule_then_it_return_final_response(
 @pytest.mark.parametrize(
     'method, response_body, request_body, status_code',
     (
-        ('GET', {"key": "value"}, None, HTTPStatus.OK),
-        ('POST', {"key": "value"}, {"req_key": "req_value"}, HTTPStatus.CREATED),
-        ('PATCH', {"key": "value"}, {"req_key": "req_value"}, HTTPStatus.ACCEPTED),
-        ('DELETE', {"key": "value"}, None, HTTPStatus.NO_CONTENT),
-        ('PUT', {"key": "value"}, {"req_key": "req_value"}, HTTPStatus.ACCEPTED),
+        pytest.param('GET', {"key": "value"}, None, HTTPStatus.OK, id='get_request'),
+        pytest.param('POST', {"key": "value"}, {"req_key": "req_value"}, HTTPStatus.CREATED, id='post_request'),
+        pytest.param('PATCH', {"key": "value"}, {"req_key": "req_value"}, HTTPStatus.ACCEPTED, id='patch_request'),
+        pytest.param('DELETE', {"key": "value"}, None, HTTPStatus.NO_CONTENT, id='delete_request'),
+        pytest.param('PUT', {"key": "value"}, {"req_key": "req_value"}, HTTPStatus.ACCEPTED, id='put_request'),
     ),
 )
 async def test_it_there_is_a_rule_for_get_it_will_return_custom_response(
@@ -141,11 +140,11 @@ async def test_get_response_when_delay_provided(
 @pytest.mark.parametrize(
     'method, response_body, request_body, status_code',
     (
-        ('GET', XML_RESPONSE, None, HTTPStatus.OK),
-        ('POST', XML_RESPONSE, {"req_key": "req_value"}, HTTPStatus.CREATED),
-        ('PATCH', XML_RESPONSE, {"req_key": "req_value"}, HTTPStatus.ACCEPTED),
-        ('DELETE', XML_RESPONSE, None, HTTPStatus.NO_CONTENT),
-        ('PUT', XML_RESPONSE, {"req_key": "req_value"}, HTTPStatus.ACCEPTED),
+        pytest.param('GET', XML_RESPONSE, None, HTTPStatus.OK, id='get_xml_response'),
+        pytest.param('POST', XML_RESPONSE, {"req_key": "req_value"}, HTTPStatus.CREATED, id='post_xml_response'),
+        pytest.param('PATCH', XML_RESPONSE, {"req_key": "req_value"}, HTTPStatus.ACCEPTED, id='patch_xml_response'),
+        pytest.param('DELETE', XML_RESPONSE, None, HTTPStatus.NO_CONTENT, id='delete_xml_response'),
+        pytest.param('PUT', XML_RESPONSE, {"req_key": "req_value"}, HTTPStatus.ACCEPTED, id='put_xml_response'),
     ),
 )
 async def test_it_there_is_a_rule_for_get_it_will_return_custom_xml_response(  # pylint: disable=too-many-arguments
