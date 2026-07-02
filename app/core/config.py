@@ -8,12 +8,20 @@ PROJECT_DIR = Path(__file__).parent.parent.parent
 
 
 class Settings(BaseSettings):
+    """Application settings and configuration.
+    
+    Configuration can be provided via environment variables or .env file.
+    """
+    
+    # Environment
     ENV: Optional[str] = None
     RELEASE: Optional[str] = None
 
+    # API Configuration
     API_V1_STR: str = "/api/api_v1"
     PROJECT_NAME: str = "statuscode_test_tool"
 
+    # Sentry (error tracking)
     SENTRY_DSN: Optional[str] = None
 
     # Database Configuration
@@ -25,6 +33,13 @@ class Settings(BaseSettings):
     DB_PORT: Optional[str] = None
     DB_PATH: str = "app.db"  # For SQLite
     SQLALCHEMY_DATABASE_URI: Optional[str] = None
+
+    # Database Connection Pool Configuration
+    DB_POOL_SIZE: int = 20  # Number of connections to keep in the pool
+    DB_POOL_MAX_OVERFLOW: int = 10  # Maximum overflow connections beyond pool_size
+    DB_POOL_RECYCLE: int = 3600  # Recycle connections after this many seconds (1 hour)
+    DB_POOL_PRE_PING: bool = True  # Test connections before using them
+    DB_ECHO: bool = False  # Echo SQL statements (useful for debugging)
 
     # TEST DATABASE
     TEST_DB_TYPE: str = "sqlite"
@@ -39,6 +54,7 @@ class Settings(BaseSettings):
     @field_validator("SQLALCHEMY_DATABASE_URI", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: str, info) -> str:
+        """Assemble database connection URI from components."""
         if isinstance(v, str):
             return v
         values = info.data
@@ -64,6 +80,7 @@ class Settings(BaseSettings):
     @field_validator("TEST_SQLALCHEMY_DATABASE_URI", mode="before")
     @classmethod
     def _assemble_test_db_connection(cls, v: str, info) -> str:
+        """Assemble test database connection URI."""
         values = info.data
         db_type = values.get("TEST_DB_TYPE", "sqlite").lower()
 

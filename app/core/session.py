@@ -1,60 +1,55 @@
-from typing import TYPE_CHECKING
-import re
-
-from sqlalchemy import pool, event
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool, QueuePool
 
 from core.config import settings
+from api.deps import logger
 
 
-if settings.ENV == "TEST":
-    sqlalchemy_database_uri = settings.TEST_SQLALCHEMY_DATABASE_URI
-    db_type = settings.TEST_DB_TYPE
-else:
-    sqlalchemy_database_uri = settings.SQLALCHEMY_DATABASE_URI
-    db_type = settings.DB_TYPE
-
-
-def regexp_match(pattern: str, text: str) -> bool:
+def _get_pool_config() -> dict:
+    """Get connection pool configuration based on database type and env vars.
+    
+    Returns:
+        dict: Pool configuration options
     """
-    Cross-database regex match function.
-    Works with SQLite, MySQL, and PostgreSQL.
-    """
-    try:
-        return bool(re.match(pattern, text))
-    except (TypeError, re.error):
-        return False
+    db_type = settings.DB_TYPE.lower()
+    
+    # Default pool size and overflow
+    pool_size = int(settings.DB_POOL_SIZE or 20)
+    max_overflow = int(settings.DB_POOL_MAX_OVERFLOW or 10)
+    pool_recycle = int(settings.DB_POOL_RECYCLE or 3600)  # 1 hour
+    pool_pre_ping = settings.DB_POOL_PRE_PING or True
+    
+    logger.info(
+        f"Database connection pool config: pool_size={pool_size}, "
+        f"max_overflow={max_overflow}, recycle={pool_recycle}s, pre_ping={pool_pre_ping}"
+    )
+    
+    if db_type == "sqlite":
+        # SQLite uses NullPool (no connection pooling)
+        return {"poolclass": NullPool}
+    else:
+        # MySQL and PostgreSQL use QueuePool
+        return {
+            "poolclass": QueuePool,
+            "pool_size": pool_size,
+            "max_overflow": max_overflow,
+            "pool_recycle": pool_recycle,
+            "pool_pre_ping": pool_pre_ping,
+        }
 
 
-# For SQLite, use StaticPool; for others use NullPool
-if db_type.lower() == "sqlite":
-    engine_kwargs = {
-        "poolclass": pool.StaticPool,
-        "connect_args": {"check_same_thread": False},
-        "echo": True,
-    }
-else:
-    engine_kwargs = {
-        "pool_pre_ping": True,
-        "poolclass": pool.NullPool,
-        "echo": True,
-    }
-
-async_engine = create_async_engine(
-    sqlalchemy_database_uri,
-    **engine_kwargs,
+# Create async engine with appropriate pool configuration
+engine = create_async_engine(
+    settings.SQLALCHEMY_DATABASE_URI,
+    echo=settings.DB_ECHO,
+    **_get_pool_config(),
 )
 
-# Register custom regexp_match function for SQLite
-if db_type.lower() == "sqlite":
-    @event.listens_for(async_engine.sync_engine, "connect")
-    def create_regexp_function(dbapi_conn, connection_record):
-        """Register the regexp_match function with SQLite."""
-        dbapi_conn.create_function("regexp_match", 2, regexp_match)
-
-async_session = async_sessionmaker(
-    bind=async_engine, autocommit=False, autoflush=False, class_=AsyncSession,
+# Create async session factory
+async_session = sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False,
 )
-
-if TYPE_CHECKING:
-    async_session: async_sessionmaker[AsyncSession]  # type: ignore
