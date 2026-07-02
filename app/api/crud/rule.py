@@ -1,101 +1,144 @@
-from typing import Union, Any
+import re
+from typing import Optional, List
 
-from fastapi.encoders import jsonable_encoder
-from sqlalchemy import select, delete, or_, and_, func, text
-from sqlalchemy.sql.operators import is_not
+from sqlalchemy import select, func
+from sqlalchemy.orm import Session
 
-from api.db_models.models import RuleModel
-from api.deps import logger
-from api.schemas.rule import Rule, RuleStatusChange
+from api.db_models.rule import Rule as RuleModel
+from api.schemas.rule import Rule, RuleMockCountChange
 from core.context import get_db_session
+from api.deps import logger
 
 
 async def create_rule(rule: Rule) -> RuleModel:
+    """Create a new rule in the database."""
     db_session = get_db_session()
-    if rule.url.startswith('/'):
-        rule.url = rule.url[1:]
-    item_in_data = jsonable_encoder(rule)
-    item: RuleModel = RuleModel(**item_in_data)
-    db_session.add(item)
-    try:
-        await db_session.commit()
-    except Exception as ex:  # pylint: disable=broad-except
-        logger.error('error while creating rule: %s', ex)
-        await db_session.rollback()
-        raise ex
-    await db_session.refresh(item)
-    return item
-
-
-async def execute_raw_query(query: str) -> Any:
-    session = get_db_session()
-    query_executer = await session.execute(text(query))
-    return query_executer.scalars().first()
-
-
-async def get_rule_by_id(rule_id: int) -> RuleModel:
-    session = get_db_session()
-    query_executer = await session.execute(select(RuleModel).where(RuleModel.id == rule_id))
-    return query_executer.scalars().first()
-
-
-async def disable_rule(rule_id: int, status: RuleStatusChange) -> RuleModel:
-    session = get_db_session()
-    query: RuleModel = select(RuleModel).where(RuleModel.id == rule_id)
-    query_result: RuleModel = await session.execute(query)
-    db_rule = query_result.scalar()
-    db_rule.enable = status.enable
-    await session.commit()
-    await session.refresh(db_rule)
+    db_rule = RuleModel(**rule.model_dump())
+    db_session.add(db_rule)
+    await db_session.commit()
+    await db_session.refresh(db_rule)
     return db_rule
 
 
-async def delete_rule(rule_id: int) -> None:
-    session = get_db_session()
-    query: RuleModel = delete(RuleModel).where(RuleModel.id == rule_id)
-    await session.execute(query)
-    await session.commit()
+async def get_rule_by_id(rule_id: int) -> Optional[RuleModel]:
+    """Fetch a rule by ID."""
+    db_session = get_db_session()
+    result = await db_session.execute(
+        select(RuleModel).where(RuleModel.id == rule_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_all_rules() -> List[RuleModel]:
+    """Fetch all rules."""
+    db_session = get_db_session()
+    result = await db_session.execute(select(RuleModel))
+    return result.scalars().all()
+
+
+async def search_rule(method: str, path: str) -> Optional[RuleModel]:
+    """Search for a rule matching method and path (enabled rules only)."""
+    db_session = get_db_session()
+    result = await db_session.execute(
+        select(RuleModel).where(
+            RuleModel.method == method.upper(),
+            RuleModel.enable == True,
+            RuleModel.mock_count != 0,
+        )
+    )
+    rules = result.scalars().all()
+    
+    for rule in rules:
+        if re.search(rule.url, path):
+            return rule
+    
+    return None
+
+
+async def disable_rule(rule_id: int, status) -> None:
+    """Enable or disable a rule."""
+    db_session = get_db_session()
+    result = await db_session.execute(
+        select(RuleModel).where(RuleModel.id == rule_id)
+    )
+    rule = result.scalar_one_or_none()
+    if rule:
+        rule.enable = status.enable
+        await db_session.commit()
+
+
+async def set_rule_mock_count(rule_id: int, mock_count: int) -> RuleModel:
+    """Update rule mock count."""
+    db_session = get_db_session()
+    result = await db_session.execute(
+        select(RuleModel).where(RuleModel.id == rule_id)
+    )
+    rule = result.scalar_one_or_none()
+    if rule:
+        rule.mock_count = mock_count
+        await db_session.commit()
+        await db_session.refresh(rule)
+    return rule
 
 
 async def reduce_use_count(rule: RuleModel) -> None:
-    session = get_db_session()
-    await session.refresh(rule)
-    logger.debug('set rule usage. id: %s, current mock_count: %s', rule.id, rule.mock_count)
-    if rule.mock_count in (-1, 0):
-        return
+    """Reduce rule use count if not unlimited."""
     if rule.mock_count > 0:
         rule.mock_count -= 1
-    await session.commit()
-    await session.refresh(rule)
-    logger.debug('set rule usage. id: %s, new mock_count: %s', rule.id, rule.mock_count)
+        db_session = get_db_session()
+        await db_session.commit()
 
 
-async def search_rule(method: str, url: str) -> Union[RuleModel, None]:
-    session = get_db_session()
-    logger.debug('search rule, method: %s, url: %s', method, url)
-    query = select(RuleModel).filter(and_(
-        RuleModel.enable.is_(True),
-        RuleModel.method == method,
-        is_not(func.regexp_match(url, RuleModel.url), None),
-        or_(RuleModel.mock_count == -1, RuleModel.mock_count > 0),
-    ))
-    query_result = await session.execute(query)
-    return query_result.scalars().first()
+async def delete_rule(rule_id: int) -> None:
+    """Delete a rule by ID."""
+    db_session = get_db_session()
+    result = await db_session.execute(
+        select(RuleModel).where(RuleModel.id == rule_id)
+    )
+    rule = result.scalar_one_or_none()
+    if rule:
+        await db_session.delete(rule)
+        await db_session.commit()
 
 
-async def get_all_rules() -> list[RuleModel]:
-    session = get_db_session()
-    query = select(RuleModel)
-    query_result = await session.execute(query)
-    return query_result.scalars().all()
-
-
-async def set_rule_mock_count(rule_id: int, new_value: int) -> RuleModel:
-    session = get_db_session()
-    query: RuleModel = select(RuleModel).where(RuleModel.id == rule_id)
-    query_result: RuleModel = await session.execute(query)
-    db_rule: RuleModel = query_result.scalar()
-    db_rule.mock_count = new_value
-    await session.commit()
-    await session.refresh(db_rule)
-    return db_rule
+async def get_conflicting_rules(method: str, url_pattern: str) -> List[tuple[int, str, str]]:
+    """Find rules with overlapping URL patterns (same method).
+    
+    Returns:
+        List of tuples: (rule_id, method, url_pattern)
+    """
+    db_session = get_db_session()
+    result = await db_session.execute(
+        select(RuleModel.id, RuleModel.method, RuleModel.url).where(
+            RuleModel.method == method.upper()
+        )
+    )
+    existing_rules = result.all()
+    
+    conflicts = []
+    try:
+        pattern_regex = re.compile(url_pattern)
+    except re.error:
+        return conflicts
+    
+    # Generate test URLs from existing patterns to find overlaps
+    test_urls = [
+        "api.example.com/test",
+        "api.customer.io/v1/activities",
+        "track.customer.io/api/v1/customers/123/unsuppress",
+        "api.cloudflare.com/client/v4/zones/abc123/ssl/universal/settings",
+    ]
+    
+    for rule_id, rule_method, rule_pattern in existing_rules:
+        try:
+            rule_regex = re.compile(rule_pattern)
+            # Check if patterns overlap on test URLs
+            for test_url in test_urls:
+                if pattern_regex.search(test_url) and rule_regex.search(test_url):
+                    if rule_id not in [c[0] for c in conflicts]:
+                        conflicts.append((rule_id, rule_method, rule_pattern))
+                    break
+        except re.error:
+            continue
+    
+    return conflicts
