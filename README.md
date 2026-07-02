@@ -1,104 +1,206 @@
 # Moxie
 
-Moxie is a high-performance network mediator that sits at the edge of your internal infrastructure, giving you total control over outbound API traffic. By acting as a transparent bridge or a sophisticated mock server, it allows developers and SREs to:
+Moxie is a high-performance network mediator that sits at the edge of your internal infrastructure, giving you total control over outbound API traffic. By acting as a transparent bridge or a sophisticated interceptor, Moxie lets you:
 
-- Simulate Reality: Return custom JSON or XML payloads and status codes to validate how internal systems handle specific API behaviors.
-- Engineer Chaos: Inject precision latency and custom error states to test system resilience and timeout configurations under pressure.
-- Bridge the Gap: Maintain full transparency for standard traffic while selectively intercepting specific endpoints for debugging or local development.
+- **Simulate Reality:** Return custom JSON or XML payloads and status codes to validate how internal systems handle specific API behaviors.
+- **Engineer Chaos:** Inject precision latency and custom error states to test system resilience and timeout configurations under pressure.
+- **Bridge the Gap:** Maintain full transparency for standard traffic while selectively intercepting specific endpoints for debugging or local development.
 
 version: 0.1
 
 ![diagram.png](doc_files%2Fdiagram.png)
-some of our services, require external APIs like Cloudflare and customer.io. these kinds of services, sometimes return some exception codes, like 429 and these codes will interrupt our service's routine tasks.
-to cope with this kind of exception, we used BackOff mechanisms.\
-but we are unable to test those in DEV or STG environment. because any interruption for our outgoing gateway will affect all of our services.
-for this purpose, we decided to implement our custom API gateway.\
-this API gateway should be worked in the transparent mode and should pass every request to the destination. Based on test requirements, we should be able to add a rule to change status_code or response content.
 
-# How to use
-This project is based on the FastApi and thus there is a Swagger WUI to working with the APIs.![img.png](doc_files/swagger.png)
-We can change normal working route by adding rules. for example, we have some requests to customer.io url.\
-normally those requests goes through our gateway without any changes. by using statuscode_test_tool, we can change request or response.\
-take this as an example:
-we want to test `api.customer.io/v1/activities` api call that called by customer-io service. this is the steps:
-1. change the base service url (in this example `https://api.customer.io/v1/`) in our service in test (customer-io). most of the URLs defined by ENV in the Deploy project
-2. it's possible to test multiple remote transparent requests
-  ![img_1.png](doc_files/remote_calls.png)
-  ![img.png](doc_files/example_get_call.png)
-  note: by using this website, can mock api calls: https://jsonplaceholder.typicode.com/guide/
-3. now all the customer-io requests should route by the `statuscode_test_tool` (everything should work as before)
-4. now assume we want to interrupt this request: `GET` > `https://api.customer.io/v1/activities` with statuscode 429
-5. add a rule to `statuscode_test_tool` with this body:
-    ```json
-    {
-      "method": "GET",
-      "url": "api.customer.io/v1/activities",
-      "call_backend": false,
-      "status_code": 429,
-      "response": "{}",
-      "enable": true,
-      "mock_count": 3,
-      "response_delay": 4,
-      "response_media_type": "application/json"
-    }
-    ```
-    ![img.png](doc_files/add_rule.png)
-    note: for `url` there is not `http://` or `https://`
-6. now the request should fail
-7. by patching the rules, it's possible to disable/enable the rules
-![img.png](doc_files/patch_rule.png)
+Some of our services require external APIs like Cloudflare and customer.io. These services sometimes return exception codes like 429, which can interrupt our service's reliability. To cope with these exceptions, we use BackOff mechanisms. However, we're unable to test those in DEV or STG environments because any interruption to our outgoing gateway affects all services.
 
-# local run/develop
-- install requirements:
-`pip install -r requirements.txt`
-- create `.env` file
+For this purpose, we implemented our custom API gateway. This gateway works in transparent mode and passes every request to the destination. Based on test requirements, we can add a rule to change status_code or response without affecting real traffic.
+
+## Quick Start
+
+### Local Development
+
+**Prerequisites:**
+- Python 3.13+
+- pip or uv package manager
+
+**Installation:**
+```bash
+pip install -r requirements.txt
 ```
-# Postgres
+
+**Configuration:**
+
+Create a `.env` file (see `example.env` for all options):
+
+```bash
+cp example.env .env
+```
+
+For PostgreSQL:
+```env
+DB_TYPE=postgresql
 DB_HOST=postgres
 DB_USER=postgres
-DB_PASSWORD=111111
+DB_PASSWORD=postgres
 DB_DATABASE=statuscode_tool
-
-# test_postgres
-TEST_DB_HOST=postgres
-TEST_DB_USER=postgres
-TEST_DB_PASSWORD=111111
-TEST_DB_DATABASE=statuscode_tool
 ```
 
-## rule structure
-- method: string, that identify REST methods (GET, POST, PUT, DELETE, PATCH)
-- url: string, regex that match our url. for example:
-  - `test_url/api/.*/id` will match: `test_url/api/api_v1/id`, `test_url/api/api_v2/id` and `test_url/api/test/id`
-  - `test_url/api/api_v1/id` will match: `test_url/api/api_v1/id`
-- call_backend: require to still call the destination or not
-- status_code: return status code
-- response: response as json format
-- enable: rule enable or not
-- mock_count: how many times this rule should work. -1: without limitation, 0: dont call, x>0: call x times 
-- response_delay: delay until custom response returned
+**Run migrations:**
+```bash
+alembic upgrade head
+```
 
-## address
-- STG: https://statuscode-test-tool.staging.ueni.xyz/
-- DEV: https://statuscode-test-tool.dev.ueni.xyz/
+**Start the server:**
+```bash
+uvicorn app.main:app --reload --port 8080
+```
 
-## rule examples
-### disable customer.io unsuppress endpoint (5 times)
+Access Swagger UI: http://localhost:8080/
+
+### Docker
+
+**Using Docker Compose (includes PostgreSQL):**
+```bash
+docker-compose up
+```
+
+**Access:** http://localhost:8080/
+
+## Usage
+
+### Interactive API Documentation
+
+The Swagger UI is available at the root path: `http://localhost:8080/`
+
+For detailed API documentation, see [docs/API.md](docs/API.md)
+
+### Example: Create a Test Rule
+
+1. **Test your URL pattern first:**
+
+```bash
+curl -X POST "http://localhost:8080/api/api_v1/api_management/rule/test" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "method": "GET",
+    "url_pattern": "api.customer.io/v1/activities",
+    "test_url": "api.customer.io/v1/activities"
+  }'
+```
+
+2. **Check for conflicts with existing rules:**
+
+```bash
+curl -X POST "http://localhost:8080/api/api_v1/api_management/rule/check-conflicts" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "method": "GET",
+    "url": "api.customer.io/v1/activities",
+    "call_backend": false,
+    "status_code": 429,
+    "response": "{}",
+    "enable": true,
+    "mock_count": -1,
+    "response_delay": 0,
+    "response_media_type": "application/json",
+    "custom_headers": {}
+  }'
+```
+
+3. **Create the rule:**
+
+```bash
+curl -X POST "http://localhost:8080/api/api_v1/api_management/rule" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "method": "GET",
+    "url": "api.customer.io/v1/activities",
+    "call_backend": false,
+    "status_code": 429,
+    "response": "{\"error\": \"Too Many Requests\"}",
+    "enable": true,
+    "mock_count": 3,
+    "response_delay": 0,
+    "response_media_type": "application/json",
+    "custom_headers": {}
+  }'
+```
+
+4. **View all rules:**
+
+```bash
+curl http://localhost:8080/api/api_v1/api_management/rules
+```
+
+5. **Enable/disable a rule:**
+
+```bash
+curl -X PATCH "http://localhost:8080/api/api_v1/api_management/rule/1/status" \
+  -H "Content-Type: application/json" \
+  -d '{"enable": false}'
+```
+
+6. **Delete a rule:**
+
+```bash
+curl -X DELETE "http://localhost:8080/api/api_v1/api_management/rule/1"
+```
+
+### Backup and Share Rules
+
+**Export all rules:**
+```bash
+curl -X POST "http://localhost:8080/api/api_v1/api_management/rules/export" \
+  > my_rules.json
+```
+
+**Import rules on another instance:**
+```bash
+curl -X POST "http://localhost:8080/api/api_v1/api_management/rules/import" \
+  -H "Content-Type: application/json" \
+  -d @my_rules.json
+```
+
+## Rule Structure
+
+### Fields
+
+- **method** (string, required): HTTP method (GET, POST, PUT, PATCH, DELETE)
+- **url** (string, regex, required): URL pattern to match (without http:// or https://)
+  - Examples:
+    - `api.customer.io/v1/activities` - exact match
+    - `api.customer.io/v1/activities.*` - prefix match
+    - `track.customer.io/api/v1/customers/.*/unsuppress` - dynamic segments
+- **call_backend** (boolean): Whether to still call the actual backend after applying rule
+- **status_code** (integer): HTTP status code to return (e.g., 429, 500, 200)
+- **response** (string, JSON): Response body as string
+- **enable** (boolean): Whether this rule is active
+- **mock_count** (integer): How many times to apply this rule
+  - `-1`: unlimited (default)
+  - `0`: never apply
+  - `> 0`: apply exactly N times, then disable
+- **response_delay** (integer): Delay in seconds before returning response
+- **response_media_type** (string): Content-Type header (default: `application/json`)
+- **custom_headers** (object): Custom headers to add to the request
+
+### Examples
+
+**Simulate 429 Rate Limit (3 times):**
 ```json
 {
-    "method": "POST",
-    "url": "track.customer.io/api/v1/customers/.*/unsuppress",
-    "call_backend": false,
-    "custom_headers": {},
-    "status_code": 429,
-    "response": "{\"key\": \"value\"}",
-    "enable": true,
-    "mock_count": 5,
-    "response_delay": 0,
-    "response_media_type": "application/json"
+  "method": "POST",
+  "url": "track.customer.io/api/v1/customers/.*/unsuppress",
+  "call_backend": false,
+  "custom_headers": {},
+  "status_code": 429,
+  "response": "{\"key\": \"value\"}",
+  "enable": true,
+  "mock_count": 3,
+  "response_delay": 0,
+  "response_media_type": "application/json"
 }
 ```
-### example 2:
+
+**Return Mocked Cloudflare Response (unlimited):**
 ```json
 {
   "method": "GET",
@@ -113,15 +215,16 @@ TEST_DB_DATABASE=statuscode_tool
   "response_media_type": "application/json"
 }
 ```
-### xml example
+
+**Return XML Response:**
 ```json
 {
   "method": "GET",
-  "url": "test_url.com/xml_reponse",
+  "url": "test_url.com/xml_response",
   "call_backend": false,
   "custom_headers": {},
   "status_code": 200,
-  "response": "<studentsList>  <student  id=\"1\">  <firstName>Greg</firstName>  <lastName>Dean</lastName>  <certificate>True</certificate>  <scores>  <module1>70</module1>  <module12>80</module12>  <module3>90</module3>  </scores>  </student>  <student  ind=\"2\">  <firstName>Wirt</firstName>  <lastName>Wood</lastName>  <certificate>True</certificate>  <scores>  <module1>80</module1>  <module12>80.2</module12>  <module3>80</module3>  </scores>  </student>  </studentsList>",
+  "response": "<studentsList><student id=\"1\"><firstName>Greg</firstName><lastName>Dean</lastName></student></studentsList>",
   "enable": true,
   "mock_count": -1,
   "response_delay": 1,
@@ -129,20 +232,118 @@ TEST_DB_DATABASE=statuscode_tool
 }
 ```
 
-# Development
-## autogenerate alembic model
-`alembic revision --autogenerate -m 'name'`
+**Pass Through to Backend with Custom Headers:**
+```json
+{
+  "method": "GET",
+  "url": "api.example.com/.*",
+  "call_backend": true,
+  "custom_headers": {"X-Custom-Header": "custom-value"},
+  "status_code": 200,
+  "response": "{}",
+  "enable": true,
+  "mock_count": -1,
+  "response_delay": 0,
+  "response_media_type": "application/json"
+}
+```
 
-## run migrations
-`alembic upgrade head`
+## Health Checks
 
-## local dev execution
-`uvicorn main:app --reload --port 8080`
+Moxie provides three health check endpoints for monitoring and orchestration:
 
-## ToDo
-- [ ] add response based on request data (json)
-- [ ] add response based on request parameters
-- [x] fix ? in url (maybe \ in regex)
-  - example: `"url": "api.cloudflare.com/client/v4/zones/\?name=.*"`
-- [x] response accept any type of data (not only json, for example xml)
-- [ ] add webhook fire
+```bash
+# Simple health check (service is running)
+curl http://localhost:8080/api/v1/healthcheck/
+
+# Readiness probe (service is ready, database connected)
+curl http://localhost:8080/api/v1/healthcheck/ready
+
+# Liveness probe (process is alive)
+curl http://localhost:8080/api/v1/healthcheck/live
+```
+
+Use these for Kubernetes probes or load balancer health checks.
+
+## Development
+
+### Auto-generate Alembic Migration
+```bash
+alembic revision --autogenerate -m 'migration_name'
+```
+
+### Run Migrations
+```bash
+alembic upgrade head
+```
+
+### Local Development Server
+```bash
+uvicorn app.main:app --reload --port 8080
+```
+
+### Run Tests
+```bash
+pytest
+```
+
+## Configuration
+
+See [docs/CONNECTION_POOL_CONFIG.md](docs/CONNECTION_POOL_CONFIG.md) for detailed database connection pool tuning.
+
+## Deployment
+
+### Environment Variables
+
+Key configuration via environment variables:
+
+```env
+# Database
+DB_TYPE=postgresql              # sqlite, mysql, postgresql
+DB_HOST=localhost
+DB_USER=postgres
+DB_PASSWORD=secure_password
+DB_DATABASE=statuscode_tool
+DB_PORT=5432
+
+# Connection Pool (see CONNECTION_POOL_CONFIG.md)
+DB_POOL_SIZE=20
+DB_POOL_MAX_OVERFLOW=10
+DB_POOL_RECYCLE=3600
+
+# Error Tracking (optional)
+SENTRY_DSN=https://key@sentry.io/project
+
+# Environment
+ENV=production
+RELEASE=0.1.0
+```
+
+### Docker
+
+Build and run:
+```bash
+docker build -t moxie:latest .
+docker run -p 8080:8080 --env-file .env moxie:latest
+```
+
+### Kubernetes
+
+See [docs/API.md](docs/API.md#kubernetes-integration) for example deployment with health probes.
+
+## Roadmap
+
+- [x] Rule creation and management
+- [x] Response mocking (JSON and XML)
+- [x] Rule conflict detection
+- [x] Rule import/export
+- [x] Health checks and readiness probes
+- [x] Connection pool configuration
+- [ ] Response templates with dynamic values
+- [ ] Rule grouping and state machines
+- [ ] Metrics and analytics dashboard
+- [ ] Webhook support for custom actions
+
+## License
+
+MIT
